@@ -1,0 +1,79 @@
+<section class="todo-app">
+  <header class="todo-header">
+    <h1>todos</h1>
+    <div class="todo-input-row">
+      <input
+        class="todo-input"
+        type="text"
+        placeholder="What needs to be done?"
+        [value]="newTitle()"
+        (input)="onNewTitleChange($any($event.target).value)"
+        (keyup.enter)="addTodo()"
+        autofocus
+      />
+      <button class="btn-add" (click)="addTodo()" [disabled]="!newTitle().trim()">Add</button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="error-banner" role="alert">
+      {{ error() }}
+      <button class="btn-dismiss" (click)="error.set(null)">✕</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Loading todos…</div>
+  } @else {
+    <main class="todo-main">
+      @if (todos().length === 0) {
+        <p class="empty-state">No todos yet. Add one above!</p>
+      } @else {
+        <ul class="todo-list">
+          @for (todo of filteredTodos(); track todo.id) {
+            <li class="todo-item" [class.completed]="todo.completed">
+              <input
+                type="checkbox"
+                class="todo-checkbox"
+                [checked]="todo.completed"
+                (change)="toggleComplete(todo)"
+              />
+
+              @if (editingId() === todo.id) {
+                <input
+                  class="todo-edit-input"
+                  type="text"
+                  [value]="editingTitle()"
+                  (input)="onEditTitleChange($any($event.target).value)"
+                  (keyup.enter)="saveEdit(todo)"
+                  (keyup.escape)="cancelEdit()"
+                  (blur)="saveEdit(todo)"
+                />
+              } @else {
+                <span class="todo-label" (dblclick)="startEdit(todo)">{{ todo.title }}</span>
+              }
+
+              <button class="btn-delete" (click)="deleteTodo(todo.id)" title="Delete">✕</button>
+            </li>
+          }
+        </ul>
+      }
+    </main>
+
+    @if (todos().length > 0) {
+      <footer class="todo-footer">
+        <span class="item-count">{{ activeCount() }} item{{ activeCount() !== 1 ? 's' : '' }} left</span>
+
+        <div class="filters">
+          <button [class.active]="filter() === 'all'" (click)="setFilter('all')">All</button>
+          <button [class.active]="filter() === 'active'" (click)="setFilter('active')">Active</button>
+          <button [class.active]="filter() === 'completed'" (click)="setFilter('completed')">Completed</button>
+        </div>
+
+        @if (todos().some(t => t.completed)) {
+          <button class="btn-clear" (click)="clearCompleted()">Clear completed</button>
+        }
+      </footer>
+    }
+  }
+</section>
