@@ -1,29 +1,30 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { TodoService } from '../../services/todo.service';
 import { Todo } from '../../models/todo.model';
 
-type FilterType = 'all' | 'active' | 'completed';
+type Filter = 'all' | 'active' | 'completed';
 
 @Component({
   selector: 'app-todo-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   templateUrl: './todo-list.component.html',
   styleUrl: './todo-list.component.scss',
 })
 export class TodoListComponent implements OnInit {
   private readonly todoService = inject(TodoService);
 
+  // State
   todos = signal<Todo[]>([]);
-  filter = signal<FilterType>('all');
+  loading = signal(true);
+  error = signal<string | null>(null);
   newTitle = signal('');
+  filter = signal<Filter>('all');
   editingId = signal<string | null>(null);
   editingTitle = signal('');
-  loading = signal(false);
-  error = signal<string | null>(null);
 
+  // Derived
   filteredTodos = computed(() => {
     const f = this.filter();
     return this.todos().filter((t) => {
@@ -39,30 +40,38 @@ export class TodoListComponent implements OnInit {
     this.loadTodos();
   }
 
-  loadTodos(): void {
+  private loadTodos(): void {
     this.loading.set(true);
-    this.error.set(null);
     this.todoService.getAll().subscribe({
       next: (todos) => {
         this.todos.set(todos);
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Failed to load todos. Please try again.');
+      error: (err) => {
+        this.error.set('Failed to load todos. Is the backend running?');
+        console.error(err);
         this.loading.set(false);
       },
     });
   }
 
+  onNewTitleChange(value: string): void {
+    this.newTitle.set(value);
+  }
+
   addTodo(): void {
     const title = this.newTitle().trim();
     if (!title) return;
+
     this.todoService.create({ title }).subscribe({
       next: (todo) => {
         this.todos.update((list) => [...list, todo]);
         this.newTitle.set('');
       },
-      error: () => this.error.set('Failed to add todo.'),
+      error: (err) => {
+        this.error.set('Failed to create todo.');
+        console.error(err);
+      },
     });
   }
 
@@ -71,7 +80,10 @@ export class TodoListComponent implements OnInit {
       next: (updated) => {
         this.todos.update((list) => list.map((t) => (t.id === updated.id ? updated : t)));
       },
-      error: () => this.error.set('Failed to update todo.'),
+      error: (err) => {
+        this.error.set('Failed to update todo.');
+        console.error(err);
+      },
     });
   }
 
@@ -80,18 +92,26 @@ export class TodoListComponent implements OnInit {
     this.editingTitle.set(todo.title);
   }
 
+  onEditTitleChange(value: string): void {
+    this.editingTitle.set(value);
+  }
+
   saveEdit(todo: Todo): void {
     const title = this.editingTitle().trim();
-    if (!title) {
+    if (!title || title === todo.title) {
       this.cancelEdit();
       return;
     }
+
     this.todoService.update(todo.id, { title }).subscribe({
       next: (updated) => {
         this.todos.update((list) => list.map((t) => (t.id === updated.id ? updated : t)));
         this.editingId.set(null);
       },
-      error: () => this.error.set('Failed to update todo.'),
+      error: (err) => {
+        this.error.set('Failed to update todo.');
+        console.error(err);
+      },
     });
   }
 
@@ -102,25 +122,22 @@ export class TodoListComponent implements OnInit {
 
   deleteTodo(id: string): void {
     this.todoService.delete(id).subscribe({
-      next: () => this.todos.update((list) => list.filter((t) => t.id !== id)),
-      error: () => this.error.set('Failed to delete todo.'),
+      next: () => {
+        this.todos.update((list) => list.filter((t) => t.id !== id));
+      },
+      error: (err) => {
+        this.error.set('Failed to delete todo.');
+        console.error(err);
+      },
     });
+  }
+
+  setFilter(f: Filter): void {
+    this.filter.set(f);
   }
 
   clearCompleted(): void {
     const completed = this.todos().filter((t) => t.completed);
-    completed.forEach((t) => this.deleteTodo(t.id));
-  }
-
-  setFilter(f: FilterType): void {
-    this.filter.set(f);
-  }
-
-  onNewTitleChange(value: string): void {
-    this.newTitle.set(value);
-  }
-
-  onEditTitleChange(value: string): void {
-    this.editingTitle.set(value);
+    completed.forEach((todo) => this.deleteTodo(todo.id));
   }
 }
