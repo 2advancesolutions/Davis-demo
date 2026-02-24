@@ -1,0 +1,123 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "Todo App \u2014 API Gateway + Lambda + DynamoDB (SAM)\n"
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 15
+    MemorySize: 256
+    Environment:
+      Variables:
+        TODOS_TABLE:
+          Ref: TodosTable
+        ALLOWED_ORIGINS: '*'
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues:
+    - dev
+    - staging
+    - prod
+Resources:
+  TodosTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Fn::Sub: todos-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+      - AttributeName: id
+        AttributeType: S
+      KeySchema:
+      - AttributeName: id
+        KeyType: HASH
+  TodosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Fn::Sub: todos-handler-${Stage}
+      CodeUri: TodosFunction
+      Handler: todos.handler
+      Description: CRUD handler for the Todo app
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: TodosTable
+      Events:
+        GetTodos:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: TodoApi
+            Path: /todos
+            Method: GET
+        CreateTodo:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: TodoApi
+            Path: /todos
+            Method: POST
+        UpdateTodo:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: TodoApi
+            Path: /todos/{id}
+            Method: PUT
+        DeleteTodo:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: TodoApi
+            Path: /todos/{id}
+            Method: DELETE
+        OptionsTodos:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: TodoApi
+            Path: /todos
+            Method: OPTIONS
+        OptionsTodosId:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: TodoApi
+            Path: /todos/{id}
+            Method: OPTIONS
+    Metadata:
+      SamResourceId: TodosFunction
+  TodoApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name:
+        Fn::Sub: todo-api-${Stage}
+      StageName:
+        Ref: Stage
+      Cors:
+        AllowMethods: '''GET,POST,PUT,DELETE,OPTIONS'''
+        AllowHeaders: '''Content-Type,Authorization'''
+        AllowOrigin: '''*'''
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL of the Todo REST API
+    Value:
+      Fn::Sub: https://${TodoApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+    Export:
+      Name:
+        Fn::Sub: TodoApiBaseUrl-${Stage}
+  TodosTableName:
+    Description: DynamoDB table name
+    Value:
+      Ref: TodosTable
+    Export:
+      Name:
+        Fn::Sub: TodosTableName-${Stage}
+  TodosFunctionArn:
+    Description: Lambda function ARN
+    Value:
+      Fn::GetAtt:
+      - TodosFunction
+      - Arn
