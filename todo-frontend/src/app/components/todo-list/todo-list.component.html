@@ -86,7 +86,7 @@
           <button [class.active]="filter() === 'completed'" (click)="setFilter('completed')">Completed</button>
         </div>
 
-        @if (todos().some(t => t.completed)) {
+        @if (activeCount() < todos().length) {
           <button class="btn-clear" (click)="clearCompleted()">Clear completed</button>
         } @else {
           <span></span>
