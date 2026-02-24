@@ -1,0 +1,97 @@
+<div class="todo-app">
+  <!-- Header & input -->
+  <header class="todo-header">
+    <h1>todos</h1>
+    <div class="todo-input-row">
+      <input
+        class="todo-input"
+        type="text"
+        placeholder="What needs to be done?"
+        [value]="newTitle()"
+        (input)="onNewTitleChange($any($event.target).value)"
+        (keyup.enter)="addTodo()"
+        autofocus
+      />
+      <button class="btn-add" [disabled]="!newTitle().trim()" (click)="addTodo()">Add</button>
+    </div>
+
+    @if (error()) {
+      <div class="error-banner" role="alert">
+        <span>{{ error() }}</span>
+        <button class="btn-dismiss" (click)="error.set(null)" aria-label="Dismiss error">✕</button>
+      </div>
+    }
+  </header>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <p class="loading">Loading…</p>
+  } @else {
+    <!-- Todo list -->
+    <section class="todo-main">
+      @if (filteredTodos().length === 0) {
+        <p class="empty-state">
+          {{ filter() === 'completed' ? 'No completed todos.' : 'Nothing to do — add one above!' }}
+        </p>
+      } @else {
+        <ul class="todo-list">
+          @for (todo of filteredTodos(); track todo.id) {
+            <li class="todo-item" [class.completed]="todo.completed">
+              <input
+                class="todo-checkbox"
+                type="checkbox"
+                [checked]="todo.completed"
+                (change)="toggleComplete(todo)"
+                [attr.aria-label]="'Mark ' + todo.title + ' as ' + (todo.completed ? 'active' : 'complete')"
+              />
+
+              @if (editingId() === todo.id) {
+                <input
+                  class="todo-edit-input"
+                  type="text"
+                  [value]="editingTitle()"
+                  (input)="onEditTitleChange($any($event.target).value)"
+                  (keyup.enter)="saveEdit(todo)"
+                  (keyup.escape)="cancelEdit()"
+                  (blur)="saveEdit(todo)"
+                  autofocus
+                />
+              } @else {
+                <span class="todo-label" (dblclick)="startEdit(todo)" [title]="'Double-click to edit'">
+                  {{ todo.title }}
+                </span>
+              }
+
+              <button
+                class="btn-delete"
+                (click)="deleteTodo(todo.id)"
+                aria-label="Delete {{ todo.title }}"
+              >
+                ✕
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <!-- Footer -->
+    @if (todos().length > 0) {
+      <footer class="todo-footer">
+        <span class="item-count">{{ activeCount() }} {{ activeCount() === 1 ? 'item' : 'items' }} left</span>
+
+        <div class="filters" role="group" aria-label="Filter todos">
+          <button [class.active]="filter() === 'all'" (click)="setFilter('all')">All</button>
+          <button [class.active]="filter() === 'active'" (click)="setFilter('active')">Active</button>
+          <button [class.active]="filter() === 'completed'" (click)="setFilter('completed')">Completed</button>
+        </div>
+
+        @if (activeCount() < todos().length) {
+          <button class="btn-clear" (click)="clearCompleted()">Clear completed</button>
+        } @else {
+          <span></span>
+        }
+      </footer>
+    }
+  }
+</div>
